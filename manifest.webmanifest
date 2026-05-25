@@ -1,0 +1,18 @@
+{
+    "name": "Weekly Dinner Generator",
+    "short_name": "Dinner Plan",
+    "description": "Generate a weekly dinner menu from Anju's regular options.",
+    "start_url": "index.html",
+    "scope": "./",
+    "display": "standalone",
+    "background_color": "#f7f4ef",
+    "theme_color": "#28715d",
+    "icons": [
+        {
+            "src": "app-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}

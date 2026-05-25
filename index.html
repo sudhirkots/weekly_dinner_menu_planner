@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Dinner Generator</title>
+    <meta name="theme-color" content="#28715d">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="app-icon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg: #f7f4ef;
+            --paper: #ffffff;
+            --ink: #252525;
+            --muted: #66615a;
+            --line: #ded7cc;
+            --accent: #28715d;
+            --accent-soft: #e6f2ed;
+            --warm: #ad5d21;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+        }
+
+        main {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+        }
+
+        header {
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            margin: 0 0 4px;
+            font-size: 26px;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        button {
+            border: 1px solid var(--accent);
+            background: var(--accent);
+            color: white;
+            padding: 13px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        button.secondary {
+            background: white;
+            color: var(--accent);
+        }
+
+        button.warning {
+            border-color: var(--warm);
+            background: var(--warm);
+        }
+
+        .week {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .day {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 14px;
+            display: grid;
+            grid-template-columns: 72px 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .day strong {
+            color: var(--accent);
+            font-size: 15px;
+        }
+
+        .meal {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        details {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .add-panel {
+            display: none;
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .add-panel.open {
+            display: block;
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .add-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        input {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            font: inherit;
+            background: white;
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 13px;
+            margin: 10px 0 0;
+        }
+
+        .small-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 520px) {
+            .actions {
+                grid-template-columns: 1fr;
+            }
+
+            .day {
+                grid-template-columns: 1fr;
+                gap: 4px;
+            }
+
+            .add-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>Weekly Dinner Generator</h1>
+            <p class="subtitle">Tap generate and get a simple night-meal plan.</p>
+        </header>
+
+        <section class="actions">
+            <button type="button" onclick="generateWeek()">Generate Week</button>
+            <button type="button" class="secondary" onclick="toggleAddPanel()">Add Item</button>
+        </section>
+
+        <section class="add-panel" id="addPanel">
+            <div class="add-row">
+                <input id="newItem" type="text" placeholder="Example: Tomato omelette">
+                <button type="button" onclick="addItem()">Add</button>
+            </div>
+            <p class="hint">Added items are saved in this browser and included in future generated weeks.</p>
+        </section>
+
+        <section class="week" id="week"></section>
+
+        <div class="small-actions">
+            <button type="button" class="secondary" onclick="exportText()">Export Text</button>
+            <button type="button" class="secondary" onclick="saveData()">Save</button>
+            <button type="button" class="warning" onclick="clearSaved()">Clear Saved</button>
+        </div>
+    </main>
+
+    <script>
+        const storageKey = "anjuWeeklyDinnerGeneratorV1";
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const flatbreadWeeklyLimit = 3;
+        const blockedMenuWords = ["khichdi"];
+
+        const starterItems = [
+            { name: "Doodhi paratha", group: "flatbread" },
+            { name: "Methi paratha", group: "flatbread" },
+            { name: "Mutter paratha", group: "flatbread" },
+            { name: "Paneer paratha", group: "flatbread" },
+            { name: "Moong dal paratha", group: "flatbread" },
+            { name: "Paneer tofu paratha", group: "flatbread" },
+            { name: "Thalipeeth", group: "flatbread" },
+            { name: "Pithla bhakri", group: "flatbread" },
+            { name: "Moong dal chila", group: "protein" },
+            { name: "Mixed usal and bread", group: "protein" },
+            { name: "Mixed sprout usal", group: "protein" },
+            { name: "Sprouts bhel", group: "protein" },
+            { name: "Sprouted moong", group: "protein" },
+            { name: "Chole", group: "protein" },
+            { name: "Mutter paneer", group: "protein" },
+            { name: "Ragda protein patties", group: "protein" },
+            { name: "Carrot ginger soup", group: "soup" },
+            { name: "Palak soup", group: "soup" },
+            { name: "Broccoli soup", group: "soup" },
+            { name: "Sweet corn soup", group: "soup" },
+            { name: "Roasted tomato soup", group: "soup" },
+            { name: "Salad and soup", group: "soup" },
+            { name: "Dinner salad", group: "salad" },
+            { name: "Sprouts salad", group: "salad" },
+            { name: "Chana salad", group: "salad" },
+            { name: "Bhendi", group: "vegetable" },
+            { name: "Tondli", group: "vegetable" },
+            { name: "Handvo", group: "vegetable" },
+            { name: "Quinoa upma", group: "vegetable" },
+            { name: "Avocado toast", group: "fusion" },
+            { name: "Burger and soup", group: "fusion" },
+            { name: "Sweet potato wraps", group: "fusion" },
+            { name: "Khow suey", group: "fusion" },
+            { name: "French toast", group: "breakfast" }
+        ];
+
+        let state = {
+            items: starterItems,
+            plan: []
+        };
+
+        function loadData() {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state = {
+                        items: mergeStarterItems(parsed.items || starterItems),
+                        plan: parsed.plan || []
+                    };
+                } catch (error) {
+                    state = { items: starterItems, plan: [] };
+                }
+            }
+
+            if (state.plan.length === 0) {
+                generateWeek(false);
+            } else {
+                renderWeek();
+            }
+        }
+
+        function mergeStarterItems(savedItems) {
+            const merged = savedItems.filter(item => isAllowedMenuItem(item.name));
+            const savedNames = new Set(merged.map(item => item.name.toLowerCase()));
+
+            starterItems.forEach(item => {
+                if (!savedNames.has(item.name.toLowerCase())) {
+                    merged.push(item);
+                }
+            });
+
+            return merged;
+        }
+
+        function isAllowedMenuItem(name) {
+            const normalized = String(name || "").toLowerCase();
+            return !blockedMenuWords.some(word => normalized.includes(word));
+        }
+
+        function generateWeek(shouldSave = true) {
+            const plan = Array(days.length).fill(null);
+            const usedNames = new Set();
+            let flatbreadCount = 0;
+            let lastGroup = "";
+            const saladDayIndex = Math.floor(Math.random() * days.length);
+            let sproutsBhelDayIndex = Math.floor(Math.random() * days.length);
+            while (sproutsBhelDayIndex === saladDayIndex && days.length > 1) {
+                sproutsBhelDayIndex = Math.floor(Math.random() * days.length);
+            }
+
+            days.forEach((day, index) => {
+                const forceSalad = index === saladDayIndex;
+                const forceSproutsBhel = index === sproutsBhelDayIndex;
+                let choices = getAllowedChoices({
+                    forceSalad,
+                    forceSproutsBhel,
+                    usedNames,
+                    flatbreadCount,
+                    lastGroup
+                });
+
+                const chosen = choices[Math.floor(Math.random() * choices.length)];
+                plan[index] = { day, meal: chosen.name, group: chosen.group };
+                lastGroup = chosen.group;
+                usedNames.add(chosen.name);
+                if (chosen.group === "flatbread") flatbreadCount += 1;
+            });
+
+            state.plan = plan;
+            renderWeek();
+            if (shouldSave) saveData();
+        }
+
+        function getAllowedChoices({ forceSalad, forceSproutsBhel, usedNames, flatbreadCount, lastGroup }) {
+            let choices = state.items.filter(item => {
+                if (usedNames.has(item.name)) return false;
+                if (forceSproutsBhel && item.name !== "Sprouts bhel") return false;
+                if (forceSalad && item.group !== "salad") return false;
+                if (!forceSproutsBhel && item.name === "Sprouts bhel") return false;
+                if (!forceSalad && item.group === "flatbread" && flatbreadCount >= flatbreadWeeklyLimit) return false;
+                return true;
+            });
+
+            if (choices.length === 0 && forceSproutsBhel) {
+                choices = [{ name: "Sprouts bhel", group: "protein" }];
+            }
+
+            if (choices.length === 0 && forceSalad) {
+                choices = state.items.filter(item => item.group === "salad");
+            }
+
+            if (choices.length === 0) {
+                choices = state.items.filter(item => item.group !== "flatbread" || flatbreadCount < flatbreadWeeklyLimit);
+            }
+
+            const variedChoices = choices.filter(item => item.group !== lastGroup);
+            return variedChoices.length ? variedChoices : choices;
+        }
+
+        function renderWeek() {
+            document.getElementById("week").innerHTML = days.map(day => {
+                const planned = state.plan.find(item => item.day === day);
+                return `
+                    <article class="day">
+                        <strong>${escapeHtml(day)}</strong>
+                        <div class="meal">${escapeHtml(planned ? planned.meal : "")}</div>
+                    </article>
+                `;
+            }).join("");
+        }
+
+        function addItem() {
+            const input = document.getElementById("newItem");
+            const name = input.value.trim();
+            if (!name) return;
+
+            const alreadyExists = state.items.some(item => item.name.toLowerCase() === name.toLowerCase());
+            if (!isAllowedMenuItem(name)) {
+                alert("Khichdi is kept out of the regular menu because it is only for emergency days.");
+                return;
+            }
+
+            if (!alreadyExists) {
+                state.items.push({ name, group: "custom" });
+            }
+
+            input.value = "";
+            saveData();
+            generateWeek();
+            toggleAddPanel(false);
+        }
+
+        function toggleAddPanel(forceOpen) {
+            const panel = document.getElementById("addPanel");
+            const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !panel.classList.contains("open");
+            panel.classList.toggle("open", shouldOpen);
+            if (shouldOpen) {
+                document.getElementById("newItem").focus();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(storageKey, JSON.stringify(state));
+        }
+
+        function clearSaved() {
+            if (!confirm("Clear saved added items and generated plan?")) return;
+            localStorage.removeItem(storageKey);
+            location.reload();
+        }
+
+        function exportText() {
+            const text = state.plan.map(item => `${item.day}: ${item.meal}`).join("\n");
+            const output = window.open("", "_blank");
+            output.document.write(`<pre>${escapeHtml(text)}</pre>`);
+            output.document.close();
+        }
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("service-worker.js");
+            });
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

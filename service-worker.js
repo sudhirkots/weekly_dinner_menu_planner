@@ -1,8 +1,8 @@
-const cacheName = "weekly-dinner-generator-v3";
+const cacheName = "weekly-menu-generator-v4";
 const appFiles = [
     "./",
     "./index.html",
-    "./weekly_dinner_generator.html",
+    "./weekly_menu_generator.html",
     "./manifest.webmanifest",
     "./app-icon.svg"
 ];

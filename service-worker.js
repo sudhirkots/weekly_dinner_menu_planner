@@ -1,4 +1,4 @@
-const cacheName = "weekly-dinner-generator-v1";
+const cacheName = "weekly-dinner-generator-v3";
 const appFiles = [
     "./",
     "./index.html",

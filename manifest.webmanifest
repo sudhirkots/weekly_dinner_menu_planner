@@ -1,7 +1,7 @@
 {
-    "name": "Weekly Dinner Generator",
-    "short_name": "Dinner Plan",
-    "description": "Generate a weekly dinner menu from Anju's regular options.",
+    "name": "Weekly Menu Generator",
+    "short_name": "Menu Plan",
+    "description": "Generate a weekly meal menu from regular household options.",
     "start_url": "index.html",
     "scope": "./",
     "display": "standalone",
